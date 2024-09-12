@@ -237,7 +237,7 @@ df_nuevo.info()
 # |---|---|---|
 # |price_clp|	Numérico (entero)|	Precio en pesos chilenos|
 # |price_uf|	Numérico (entero)|	Precio en Unidades de Fomento|
-# price_usd|	Numérico (entero)|	Precio en dólares estadounidenses|
+# |price_usd|	Numérico (entero)|	Precio en dólares estadounidenses|
 # |dorms|	Numérico (entero)|	Número de dormitorios|
 # |baths|	Numérico (flotante)|	Número de baños|
 # |built_area|	Numérico (flotante)|	Área construida (m²)|
