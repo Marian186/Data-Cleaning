@@ -127,15 +127,7 @@ df.drop("realtor", axis=1, inplace=True) # Se descarta la columna Realtor
 
 # ### **c) Valores NaN que quedan:** baths (65), built_area (246), total_area (208)
 
-# **Decisión:** Se ha tomado la determinación de reemplazar los valores NaN restantes, pero normalizando con la mediana cada uno de ellos según valor total de la columna dorms y comuna.
-# 
-# **Justificación:**
-# 
-# 
-# **Implicaciones:**
-# 
-
-# Visualizamos la cantidad de casas que tienen 1 o más valores NaN en las columnas de baths, built_area, total_area
+# Visualización de la cantidad casas que tienen 1 o más NaNs en las columnas `baths`, `built_area`, `total_area`
 
 # Contar cuántos NaN hay en cada comuna (solo casas únicas que tienen al menos un NaN)
 nan_by_comuna = df[df.isna().any(axis=1)].groupby('comuna').size().reset_index(name='casas_con_nan')
@@ -156,9 +148,9 @@ comparacion['porcentaje_nan'] = (comparacion['casas_con_nan'] / comparacion['tot
 print(comparacion)
 
 
-# Hay algunos valores NaN que tienen un % considerable dentro del total de la comuna que podrían cambiar los datos si no los tomamos en cuenta. Por ejemplo en comunas: Cerro Navia, Conchalí, Curacaví, La Granja, Pirque y San Ramón (sobre 10%). 
+# **Nota** Existen algunos valores NaN que representan un porcentaje considerable dentro del total de la comuna, lo que podría afectar los datos si no se toman en cuenta. Por ejemplo, en las comunas de Cerro Navia, Conchalí, Curacaví, La Granja, Pirque y San Ramón, estos porcentajes superan el 10%.
 
-# Tenemos que tener cuidado para reemplazar por normalización según la media (ya que hay outliers) y también según la mediana, ya que no podemos comparar casas de 7 dorms con casas de 1 dorm. Entonces, lo que haremos es buscar la mediana para cada casa según comuna y según cantidad de dorms.
+# **Nota** Se debe tener precaución al reemplazar los valores mediante normalización según la media, debido a la presencia de outliers, y también al considerar la mediana, ya que no es adecuado comparar casas con 7 dormitorios con casas de 1 dormitorio. Por lo tanto, se buscará la mediana para cada vivienda según la comuna y la cantidad de dormitorios.
 
 # Calcular la mediana por comuna y número de dormitorios para 'baths', 'built_area', y 'total_area'
 medianas_por_comuna_dorms = df.groupby(['comuna', 'dorms'])[['baths', 'built_area', 'total_area']].median().reset_index()
@@ -215,18 +207,13 @@ df_nuevo_normalizado.to_excel(ruta_guardado, index=False)
 print(f"Archivo guardado en: {ruta_guardado}")
 
 
-# **Decisión:** Se decide eliminar los valores nulos restantes en esta etapa inicial del análisis.
+# **Decisión**: Se ha decidido reemplazar los valores NaN restantes, normalizándolos con la mediana de cada columna, agrupados según el valor total de la columna *dorms* y *comuna*.
 # 
-# **Justificación:**
-# * **Baja proporción:** La proporción de valores nulos es relativamente pequeña en comparación con el tamaño total del dataset. (0.8 al 3%)
-# * **Primera iteración:** En esta primera iteración, el objetivo es obtener un modelo inicial para luego realizar ajustes posteriores.
-# * **Impacto limitado:** Se considera que la eliminación de estos nulos tendrá un impacto limitado en la precisión y generalización del modelo.
+# **Justificación**: Existen comunas donde los NaN representan una proporción importante de la población, por lo que simplemente eliminarlos causaria una mayor distorción.
 # 
-# **Consideraciones futuras:**
-# * En futuras iteraciones, se puede explorar métodos de imputación de valores nulos para mejorar la calidad del dataset y la robustez del modelo.
-
-#df.dropna(inplace=True) #se descarta el resto de los Nans
-
+# **Implicaciones**: Es probable que haya una pequeña distorsión en el resto de los casos debido al método elegido para reemplazar los NaN.
+# 
+# 
 
 df_nuevo_normalizado.isna().sum()/df.shape[0]*100 # Se calcula el % de los datos que quedan nulos
 
