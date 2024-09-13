@@ -35,7 +35,7 @@ df = pd.read_csv(ruta_archivo)
 df.columns = df.columns.str.replace(' ', '_') # Normalizar los nombres
 df.columns = df.columns.str.lower()
 # Mostrar las primeras filas del DataFrame
-df.head()
+df.head(10)
 
 
 # #### 3. Análisis exploratorio
@@ -57,18 +57,39 @@ df.nunique()
 
 
 # ### 4. Limpieza de datos
-# ##### 4.1. Busqueda de Valores Nulos
+# ##### 4.1. Verificamos nombre de comunas.
 
-# Se verifica la cantidad de datos faltantes
-df.isna().sum()
+# Obtener el listado único de comunas
+comunas_unicas = df['comuna'].unique()
+
+# Ordenar alfabéticamente para facilitar la revisión
+comunas_unicas.sort()
+
+# Mostrar el listado de comunas únicas
+print("Listado de comunas únicas:")
+print(comunas_unicas)
+
+
+# ##### 4.2. Busqueda de Valores Nulos
+
+# Filtrar y mostrar las filas con NaN
+nan_rows = df[df.isna().any(axis=1)]
+print("Listado de filas con NaN:")
+nan_rows.head(10)
+
+
+# Contar cuántos NaN hay en cada columna
+nan_count = df.isna().sum()
+print("Valores NaN por columna:")
+print(nan_count)
 
 
 # Se visualiza los Nulos
 msgn.matrix(df)
 
 
-# ##### 4.2 Protocolo de acción con respecto a los Nulos
-# **Parking**
+# ##### 4.3 Protocolo de acción con respecto a los Nulos
+# ### **a) Parking**
 
 df[df["parking"]==0] # Se busca las propiedades sin Parking
 
@@ -85,7 +106,7 @@ df[df["parking"]==0] # Se busca las propiedades sin Parking
 df["parking"].fillna(0, inplace=True) # Se remplazan los NaNs de parking por 0
 
 
-# **Realtor**
+# ### **b) Realtor**
 
 df.realtor.dtype
 
@@ -104,35 +125,119 @@ df.realtor.dtype
 df.drop("realtor", axis=1, inplace=True) # Se descarta la columna Realtor
 
 
-df.isna().sum()/df.shape[0]*100 # Se calcula el % de los datos que quedan nulos
+# ### **c) Valores NaN que quedan:** baths (65), built_area (246), total_area (208)
+
+# Visualización de la cantidad casas que tienen 1 o más NaNs en las columnas `baths`, `built_area`, `total_area`
+
+# Contar cuántos NaN hay en cada comuna (solo casas únicas que tienen al menos un NaN)
+nan_by_comuna = df[df.isna().any(axis=1)].groupby('comuna').size().reset_index(name='casas_con_nan')
+
+# Contar el total de casas por comuna
+total_casas_por_comuna = df.groupby('comuna').size().reset_index(name='total_casas')
+
+# Unir los dos resultados en un solo DataFrame
+comparacion = pd.merge(total_casas_por_comuna, nan_by_comuna, on='comuna', how='left')
+
+# Reemplazar NaN en 'casas_con_nan' con 0, en caso de que algunas comunas no tengan casas con NaN
+comparacion['casas_con_nan'].fillna(0, inplace=True)
+
+# Calcular el porcentaje de casas con valores NaN respecto al total de casas en cada comuna
+comparacion['porcentaje_nan'] = (comparacion['casas_con_nan'] / comparacion['total_casas']) * 100
+
+# Mostrar el resultado
+print(comparacion)
 
 
-# **Decisión:** Se decide eliminar los valores nulos restantes en esta etapa inicial del análisis.
+# **Nota** Existen algunos valores NaN que representan un porcentaje considerable dentro del total de la comuna, lo que podría afectar los datos si no se toman en cuenta. Por ejemplo, en las comunas de Cerro Navia, Conchalí, Curacaví, La Granja, Pirque y San Ramón, estos porcentajes superan el 10%.
+
+# **Nota** Se debe tener precaución al reemplazar los valores mediante normalización según la media, debido a la presencia de outliers, y también al considerar la mediana, ya que no es adecuado comparar casas con 7 dormitorios con casas de 1 dormitorio. Por lo tanto, se buscará la mediana para cada vivienda según la comuna y la cantidad de dormitorios.
+
+# Calcular la mediana por comuna y número de dormitorios para 'baths', 'built_area', y 'total_area'
+medianas_por_comuna_dorms = df.groupby(['comuna', 'dorms'])[['baths', 'built_area', 'total_area']].median().reset_index()
+
+# Mostrar la tabla con las medianas por comuna y número de dormitorios
+print(medianas_por_comuna_dorms)
+
+
+# Verificar cuántos NaN quedan en las columnas baths, built_area, y total_area
+nan_remaining = df[['baths', 'built_area', 'total_area']].isna().sum()
+
+# Mostrar el resultado para identificar si hay NaN restantes
+nan_remaining
+
+
+# Calcular las medianas de baths, built_area, total_area por comuna y cantidad de dorms
+medianas_por_comuna_dorms = df.groupby(['comuna', 'dorms'])[['baths', 'built_area', 'total_area']].median().reset_index()
+
+# Reemplazar los valores NaN en el DataFrame original según la mediana de cada comuna y cantidad de dorms
+for i, row in medianas_por_comuna_dorms.iterrows():
+    # Crear la máscara para seleccionar las filas con NaN en 'baths', 'built_area', 'total_area' en la comuna y dorms específicos
+    mask = (df['comuna'] == row['comuna']) & (df['dorms'] == row['dorms'])
+    
+    # Reemplazar NaN en 'baths'
+    df.loc[mask & df['baths'].isna(), 'baths'] = row['baths']
+    
+    # Reemplazar NaN en 'built_area'
+    df.loc[mask & df['built_area'].isna(), 'built_area'] = row['built_area']
+    
+    # Reemplazar NaN en 'total_area'
+    df.loc[mask & df['total_area'].isna(), 'total_area'] = row['total_area']
+
+# Verificar que los valores NaN hayan sido reemplazados
+print(df[['baths', 'built_area', 'total_area']].isna().sum())
+
+
+# Eliminar las filas donde hay valores NaN en 'baths', 'built_area', o 'total_area'
+df_sin_nan = df.dropna(subset=['baths', 'built_area', 'total_area'])
+
+# Verificar que ya no hay valores NaN en las columnas mencionadas
+print(df_sin_nan[['baths', 'built_area', 'total_area']].isna().sum())
+
+
+# Guardar el DataFrame sin valores NaN en un nuevo DataFrame
+df_nuevo_normalizado = df_sin_nan.copy()
+
+# Verificar que el nuevo DataFrame ha sido creado
+print(f"El nuevo DataFrame tiene {df_nuevo_normalizado.shape[0]} filas y {df_nuevo_normalizado.shape[1]} columnas.")
+
+# Si deseas guardarlo en un archivo Excel para futuras referencias
+ruta_guardado = r'.\Data\df_nuevo_normalizado.xlsx'
+df_nuevo_normalizado.to_excel(ruta_guardado, index=False)
+
+print(f"Archivo guardado en: {ruta_guardado}")
+
+
+# **Decisión**: Se ha decidido reemplazar los valores NaN restantes, normalizándolos con la mediana de cada columna, agrupados según el valor total de la columna *dorms* y *comuna*.
 # 
-# **Justificación:**
-# * **Baja proporción:** La proporción de valores nulos es relativamente pequeña en comparación con el tamaño total del dataset. (0.8 al 3%)
-# * **Primera iteración:** En esta primera iteración, el objetivo es obtener un modelo inicial para luego realizar ajustes posteriores.
-# * **Impacto limitado:** Se considera que la eliminación de estos nulos tendrá un impacto limitado en la precisión y generalización del modelo.
+# **Justificación**: Existen comunas donde los NaN representan una proporción importante de la población, por lo que simplemente eliminarlos causaria una mayor distorción.
 # 
-# **Consideraciones futuras:**
-# * En futuras iteraciones, se puede explorar métodos de imputación de valores nulos para mejorar la calidad del dataset y la robustez del modelo.
+# **Implicaciones**: Es probable que haya una pequeña distorsión en el resto de los casos debido al método elegido para reemplazar los NaN.
+# 
+# 
 
-df.dropna(inplace=True) #se descarta el resto de los Nans
-
-
-msgn.matrix(df)
+df_nuevo_normalizado.isna().sum()/df.shape[0]*100 # Se calcula el % de los datos que quedan nulos
 
 
-# ##### 4.3 Distinción de Tipos
+# Cargar el archivo Excel proporcionado
+df_nuevo = pd.read_excel(ruta_guardado)
 
-df.info()
+# Mostrar las primeras filas del DataFrame para verificar que el archivo se ha cargado correctamente
+df_nuevo.head()
+
+
+msgn.matrix(df_nuevo)
+
+
+# ##### 4.4 Distinción de Tipos
+
+df_nuevo.info()
 
 
 # |Variable|	Tipo|	Descripción|
 # |---|---|---|
 # |price_clp|	Numérico (entero)|	Precio en pesos chilenos|
 # |price_uf|	Numérico (entero)|	Precio en Unidades de Fomento|
-# price_usd|	Numérico (entero)|	Precio en dólares estadounidenses|
+# |price_usd|	Numérico (entero)|	Precio en dólares estadounidenses|
 # |dorms|	Numérico (entero)|	Número de dormitorios|
 # |baths|	Numérico (flotante)|	Número de baños|
 # |built_area|	Numérico (flotante)|	Área construida (m²)|
@@ -142,25 +247,25 @@ df.info()
 # |comuna|	Categórico|	Nombre de la comuna|
 # |ubicacion|	Categórico|	Ubicación específica|
 
-# ##### 4.4 Busqueda y manejo de duplicados
+# ##### 4.5 Busqueda y manejo de duplicados
 
 # Verificar datos duplicados
-duplicados = df.duplicated().sum()
+duplicados = df_nuevo.duplicated().sum()
 
 # Porcentaje de data duplicada
-porcentaje = df.duplicated().sum() / df.shape[0] * 100
+porcentaje = df_nuevo.duplicated().sum() / df_nuevo.shape[0] * 100
 
 print(f'{duplicados} el numero de filas duplicadas representa {porcentaje.round(2)}% del total de la data.')
 
 
 # Borramos dato duplicado y creamos un nuevo df1
-df1 = df.drop_duplicates(keep='first').copy()
+df1 = df_nuevo.drop_duplicates(keep='first').copy()
 df1.drop("id",axis=1, inplace=True)
 # Mostramos las primeras filas del df1
 df1.head()
 
 
-# ##### 4.5 Normalización
+# ##### 4.6 Normalización
 
 # Se selecciona las columnas numéricas
 num_columns = df1.select_dtypes(include=np.number)
@@ -174,7 +279,7 @@ df1_normalized = pd.DataFrame(normalized_data, columns=num_columns.columns)
 df1_normalized.head(10)
 
 
-# ##### 4.6 Estandarización
+# ##### 4.7 Estandarización
 
 # Estandarizamos la data
 std_scaler = StandardScaler()
@@ -185,7 +290,7 @@ df1_std = pd.DataFrame(std_data, columns=num_columns.columns)
 df1_std.head(10)
 
 
-# ##### 4.6 Ingenieria de columnas
+# ##### 4.8 Ingenieria de columnas
 
 # **Decisión:** Será de poco uso considerar las 3 monedas para analizar, por lo que solo se utilizará la UF para Ingeniería de columnas.
 
