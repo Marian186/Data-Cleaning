@@ -151,7 +151,7 @@ plt.show()
 # **Decisión:** Dado que las casas con demasiados dormitorios distorsionan los datos, se elegirán como límites las casas con 10 dormitorios y un precio menor a 100.000 UF.
 # 
 
-rl_data_dorms = rl_data_dorms[(rl_data_dorms['dorms']<15)& (rl_data_dorms['price_uf']<100000)]
+rl_data_dorms = rl_data_dorms[(rl_data_dorms['dorms']<10)& (rl_data_dorms['price_uf']<100000)]
 ax = sns.scatterplot(data=rl_data_dorms, x='dorms', y='price_uf')
 ax.set_title("Gráfica de dispersión")
 ax.set_xlabel("Número de dormitorios")
